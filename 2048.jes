@@ -1,0 +1,491 @@
+#2048
+#Jason Nawrocki
+#Worked with Peter Bensen
+
+import random
+#Main function will start the game
+def main(targetMax = 2048):
+  game = raw_input("Would you like to resume an old game? ")
+  if game == "Yes" or game == "yes":
+    #Open the old game file and read it to a string
+    fileName = getMediaPath("oldGame.txt")
+    fileObject = open(fileName, "rt")
+    bigString = fileObject.read()
+    fileObject.close()
+    #Split the string into  a list. break the list into the cells and score. The string will be ordered properly by the method of saving
+    list = bigString.split()
+    cell1 = [int(list[0]), int(list[1]), int(list[2]), int(list[3])]
+    cell2 = [int(list[4]), int(list[5]), int(list[6]), int(list[7])]
+    cell3 = [int(list[8]), int(list[9]), int(list[10]), int(list[11])]
+    cell4 = [int(list[12]), int(list[13]), int(list[14]), int(list[15])]
+    cells = [cell1,cell2,cell3,cell4]
+    score = int(list[16])
+  else:
+    #Start a new game
+    cells = [[2,0,0,2],[0,0,0,0],[0,0,0,0],[0,0,0,0]]
+    score = 0
+  #Draw the grid
+  #Put text on to the grid
+  canvas = makeEmptyPicture(600,800)
+  addLine(canvas,100,300,100,700)
+  addLine(canvas,200,300,200,700)
+  addLine(canvas,300,300,300,700)
+  addLine(canvas,400,300,400,700)
+  addLine(canvas,500,300,500,700)
+  addLine(canvas,100,300,500,300)
+  addLine(canvas,100,400,500,400)
+  addLine(canvas,100,500,500,500)
+  addLine(canvas,100,600,500,600)
+  addLine(canvas,100,700,500,700)
+  addTextWithStyle(canvas,200,100,"2048",makeStyle(sansSerif, bold, 75))
+  addTextWithStyle(canvas, 100,200,"Score= " + str(score),makeStyle(sansSerif,bold,75))
+  for x in range(0,4):
+    for y in range(0,4):
+      a=cells[y][x]
+      if a!=0:
+        addTextWithStyle(canvas,135+x*100,365+y*100,str(a),makeStyle(sansSerif, bold, 50))
+  show(canvas)
+  #Infinite loop to play the game
+  while True:
+    choice = raw_input("Next Move: Choose L, R, U, D, Q ")
+    #Carry out the appropriate move
+    if choice == "R":
+      result, score = moveRight(cells,score)
+      addRandom(cells)
+    if choice == "L":
+      result, score = moveLeft(cells,score)
+      addRandom(cells)
+    if choice == "U":
+      result, score = moveUp(cells,score)
+      addRandom(cells)
+    if choice == "D":
+     result, score = moveDown(cells,score)
+     addRandom(cells)
+    #Quit function. saves the cells and score into a string. saves in an order to be recalled later
+    if choice == "Q":
+      save = raw_input("Would you like to save your game to play later? ")
+      if save == "Yes" or save == "yes":
+        string = ""
+        for row in range(0,4):
+          for col in range(0,4):
+            string = string +" "+ str(cells[row][col])
+        string = string +" "+ str(score)
+        fileName=getMediaPath("oldGame.txt")
+        fileObject=open(fileName, "wt")
+        fileObject.write(string)
+        fileObject.close()
+        break
+      else:
+        break
+        
+    #Repaint the new game board after the move is carried out
+    addRectFilled(canvas,0,0,600,800, white)
+    addLine(canvas,100,300,100,700)
+    addLine(canvas,200,300,200,700)
+    addLine(canvas,300,300,300,700)
+    addLine(canvas,400,300,400,700)
+    addLine(canvas,500,300,500,700)
+    addLine(canvas,100,300,500,300)
+    addLine(canvas,100,400,500,400)
+    addLine(canvas,100,500,500,500)
+    addLine(canvas,100,600,500,600)
+    addLine(canvas,100,700,500,700)
+    addTextWithStyle(canvas,100,100,"2048",makeStyle(sansSerif, bold, 75))
+    addTextWithStyle(canvas, 200,200,"Score=" + str(score),makeStyle(sansSerif,bold,75))
+    for x in range(0,4):
+      for y in range(0,4):
+        a=cells[y][x]
+        if a!=0:
+          addTextWithStyle(canvas,135+x*100,365+y*100,str(a),makeStyle(sansSerif, bold, 50))
+    repaint(canvas)
+    
+    #Checks for if the player has won or lost
+    currentMax = testWin(cells)
+    if currentMax >= targetMax:
+      addTextWithStyle(canvas, 100, 400,"YOU WIN!!!!",makeStyle(sansSerif,bold,75),blue)
+      repaint(canvas)
+      break
+    if result == False:
+      addTextWithStyle(canvas, 100,400,"YOU LOSE",makeStyle(sansSerif,bold,75),red)
+      repaint(canvas)
+      break
+  
+#This function randomly selects an empty cell into which a 2 will appear. Called after every move
+def addRandom(cells):
+  while True:
+    row=random.choice(range(0,4))
+    column=random.choice(range(0,4))
+    if cells[row][column]==0:
+      cells[row][column]=2
+      break
+    
+#This function moves all cells to the right as far as possible, including one merge per row.
+#The method of this function will be the same for left, right, up, and down, just the items a1, a2, a3, a4 will change
+def moveRight(cells, score):
+  move=False
+  for row in range(0,4):
+    #loop runs through each row, one at a time. the four values on each row are stored in a1-a4, ascending to the right
+    a1=cells[row][0]
+    a2=cells[row][1]
+    a3=cells[row][2]
+    a4=cells[row][3]
+    #Shift all the numbers to the right as far as possible
+    #In the case that the 4th right cell is zero
+    #Move the nearest nonzero entry to that space
+    if a4==0:
+      if a3!=0:
+        a4=a3
+        a3=0
+      elif a2!=0:
+        a4=a2
+        a2=0
+      elif a1!=0:
+        a4=a1
+        a1=0   
+    #Now, in the case that the 3rd right cell is zero
+    #Shift the nearest nonzero entry to that space
+    if a3==0:
+      if a2!=0:
+        a3=a2
+        a2=0
+      elif a1!=0:
+        a3=a1
+        a1=0    
+    #Now, in the case that the 2nd right cell is zero,
+    #Shift the 1st entry to the right if it isn't zero  
+    if a2==0:
+      if a1!=0:
+        a2=a1
+        a1=0
+    
+    #Merge if possible. This method ensures only one merge
+    #if any match, add them to the right
+    if a4==a3:
+      a4=a4+a3
+      a3=0
+      score = score + a4
+    if a3==a2:
+      a3=a3+a2
+      a2=0
+      score = score + a3
+    if a2==a1:
+      a2=a2+a1
+      a1=0
+      score = score + a2
+    #Again, shift all numbers right, as before
+    
+    if a4==0:
+      if a3!=0:
+        a4=a3
+        a3=0
+      elif a2!=0:
+        a4=a2
+        a2=0
+      elif a1!=0:
+        a4=a1
+        a1=0   
+    if a3==0:
+      if a2!=0:
+        a3=a2
+        a2=0
+      elif a1!=0:
+        a3=a1
+        a1=0      
+    if a2==0:
+      if a1!=0:
+        a2=a1
+        a1=0
+    #Now, check if anything moved:
+    if a1!=cells[row][0]:
+      move=True
+    if a2!=cells[row][1]:
+      move=True
+    if a3!=cells[row][2]:
+      move=True
+    if a4!=cells[row][3]:
+      move=True
+    #Now, change the cells
+    cells[row][0]=a1
+    cells[row][1]=a2
+    cells[row][2]=a3
+    cells[row][3]=a4
+  return move, score
+
+#This function moves all cells left, including merge. same proccess as moveRight
+def moveLeft(cells, score):
+  move=False
+  for row in range(0,4):
+    #This time, a4 through a1 are reversed, ascending right to left
+    a4=cells[row][0]
+    a3=cells[row][1]
+    a2=cells[row][2]
+    a1=cells[row][3]
+    #Shift all the numbers to the left
+    if a4==0:
+      if a3!=0:
+        a4=a3
+        a3=0
+      elif a2!=0:
+        a4=a2
+        a2=0
+      elif a1!=0:
+        a4=a1
+        a1=0   
+    if a3==0:
+      if a2!=0:
+        a3=a2
+        a2=0
+      elif a1!=0:
+        a3=a1
+        a1=0      
+    if a2==0:
+      if a1!=0:
+        a2=a1
+        a1=0
+    
+    #Merge if possible. This method ensures only one merge
+    if a4==a3:
+      a4=a4+a3
+      a3=0
+      score = score + a4
+    if a3==a2:
+      a3=a3+a2
+      a2=0
+      score = score + a3
+    if a2==a1:
+      a2=a2+a1
+      a1=0
+      score = score + a2
+      
+    #Again, shift all numbers left, as before
+    
+    if a4==0:
+      if a3!=0:
+        a4=a3
+        a3=0
+      elif a2!=0:
+        a4=a2
+        a2=0
+      elif a1!=0:
+        a4=a1
+        a1=0   
+    if a3==0:
+      if a2!=0:
+        a3=a2
+        a2=0
+      elif a1!=0:
+        a3=a1
+        a1=0      
+    if a2==0:
+      if a1!=0:
+        a2=a1
+        a1=0
+    #Now, check if anything moved:
+    if a4!=cells[row][0]:
+      move=True
+    if a3!=cells[row][1]:
+      move=True
+    if a2!=cells[row][2]:
+      move=True
+    if a1!=cells[row][3]:
+      move=True
+    #Now, change the cells
+    cells[row][0]=a4
+    cells[row][1]=a3
+    cells[row][2]=a2
+    cells[row][3]=a1
+  return move, score
+
+#This function moves all cells up including merge  
+def moveUp(cells, score):
+  move=false
+  for column in range (0,4):
+    #a1 through a4 are the items in a column, ascending upwards
+    a4=cells[0][column]
+    a3=cells[1][column]
+    a2=cells[2][column]
+    a1=cells[3][column]
+    #Shift all the numbers up
+    if a4==0:
+      if a3!=0:
+        a4=a3
+        a3=0
+      elif a2!=0:
+        a4=a2
+        a2=0
+      elif a1!=0:
+        a4=a1
+        a1=0   
+    if a3==0:
+      if a2!=0:
+        a3=a2
+        a2=0
+      elif a1!=0:
+        a3=a1
+        a1=0      
+    if a2==0:
+      if a1!=0:
+        a2=a1
+        a1=0
+    
+    #Merge if possible. This method ensures only one merge
+    if a4==a3:
+      a4=a4+a3
+      a3=0
+      score = score + a4
+    if a3==a2:
+      a3=a3+a2
+      a2=0
+      score = score + a3
+    if a2==a1:
+      a2=a2+a1
+      a1=0
+      score = score + a2
+      
+    #Again, shift all numbers up, as before
+    
+    if a4==0:
+      if a3!=0:
+        a4=a3
+        a3=0
+      elif a2!=0:
+        a4=a2
+        a2=0
+      elif a1!=0:
+        a4=a1
+        a1=0   
+    if a3==0:
+      if a2!=0:
+        a3=a2
+        a2=0
+      elif a1!=0:
+        a3=a1
+        a1=0      
+    if a2==0:
+      if a1!=0:
+        a2=a1
+        a1=0
+    #Now, check if anything moved:
+    if a4!=cells[0][column]:
+      move=True
+    if a3!=cells[1][column]:
+      move=True
+    if a2!=cells[2][column]:
+      move=True
+    if a1!=cells[3][column]:
+      move=True
+    #Now, change the cells
+    cells[0][column]=a4
+    cells[1][column]=a3
+    cells[2][column]=a2
+    cells[3][column]=a1
+  return move, score
+
+#This function moves the cells down, including merge    
+def moveDown(cells, score):
+  move=false
+  for column in range (0,4):
+    #a1 through a4 are the items in a column, ascending downwards
+    a1=cells[0][column]
+    a2=cells[1][column]
+    a3=cells[2][column]
+    a4=cells[3][column]
+    #Shift all the numbers down
+    if a4==0:
+      if a3!=0:
+        a4=a3
+        a3=0
+      elif a2!=0:
+        a4=a2
+        a2=0
+      elif a1!=0:
+        a4=a1
+        a1=0   
+    if a3==0:
+      if a2!=0:
+        a3=a2
+        a2=0
+      elif a1!=0:
+        a3=a1
+        a1=0      
+    if a2==0:
+      if a1!=0:
+        a2=a1
+        a1=0
+    
+    #Merge if possible. This method ensures only one merge
+    if a4==a3:
+      a4=a4+a3
+      a3=0
+      score = score + a4
+    if a3==a2:
+      a3=a3+a2
+      a2=0
+      score = score + a3
+    if a2==a1:
+      a2=a2+a1
+      a1=0
+      score = score + a2
+      
+    #Again, shift all numbers down, as before
+    
+    if a4==0:
+      if a3!=0:
+        a4=a3
+        a3=0
+      elif a2!=0:
+        a4=a2
+        a2=0
+      elif a1!=0:
+        a4=a1
+        a1=0   
+    if a3==0:
+      if a2!=0:
+        a3=a2
+        a2=0
+      elif a1!=0:
+        a3=a1
+        a1=0      
+    if a2==0:
+      if a1!=0:
+        a2=a1
+        a1=0
+    #Now, check if anything moved:
+    if a1!=cells[0][column]:
+      move=True
+    if a2!=cells[1][column]:
+      move=True
+    if a3!=cells[2][column]:
+      move=True
+    if a4!=cells[3][column]:
+      move=True
+    #Now, change the cells
+    cells[0][column]=a1
+    cells[1][column]=a2
+    cells[2][column]=a3
+    cells[3][column]=a4
+  return move, score
+  
+#This function gets the highest cell value. used to determine if a player has won
+def testWin(cells):
+  currentMax=0
+  for row in range(4):
+    for col in range(4):
+      a = cells[row][col]
+      if a > currentMax:
+        currentMax = a
+  return currentMax
+  
+        
+  
+      
+      
+    
+  
+    
+      
+    
+  
+  
+    
+      
